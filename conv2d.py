@@ -9,7 +9,7 @@ import simple_reader as sr
 """
 Tensor board visualization method
 """
-summaries_dir = "/Users/ibm/GitRepo/tensor_board"
+summaries_dir = "/home/sleepywyn/Dev/GitRepo/tensorboard"
 
 def variable_summaries(var):
   """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
@@ -69,7 +69,7 @@ queue = fifo.FIFO_Queue(capacity=20, feature_input_shape=[160, 160],
                         input_label_file="",
                         input_df=df_train,
                         sess=sess,
-                        coord = coord)
+                        coord=coord)
 
 t = threading.Thread(target=queue.enqueue_from_df, name="enqueue")
 t.start()
@@ -122,11 +122,16 @@ y_conv = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_conv))
 
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
-correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))  # get the max value on dimension one
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))  # accuracy function
+with tf.name_scope('accuracy'):
+  with tf.name_scope('correct_prediction'):
+    correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))  # get the max value on dimension one
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))  # accuracy function
+tf.summary.scalar('accuracy', accuracy)
 
-train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
 merged = tf.summary.merge_all()
+train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
+test_writer = tf.summary.FileWriter(summaries_dir + '/test', sess.graph)
+
 sess.run(tf.global_variables_initializer())
 
 for i in range(20):
@@ -150,9 +155,12 @@ for i in range(20):
     # if (i % 100) == 0:            # alternative. calculating accuracy regarding to test set.
     #     print(i, sess.run(accuracy, feed_dict={x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
     if (i % 10) == 0:            # alternative. calculating accuracy regarding to test set.
-        print(i, sess.run(accuracy, feed_dict={x: test_images, y_: test_labels, keep_prob: 1.0}))
-    summary, _ = sess.run([merged, train_step], feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
-    train_writer.add_summary(summary, i)
+        summary, acc = sess.run([merged, accuracy], feed_dict={x: test_images, y_: test_labels, keep_prob: 1.0})
+        test_writer.add_summary(summary, i)
+        print(i, acc)
+    else:
+        summary, _ = sess.run([merged, train_step], feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
+        train_writer.add_summary(summary, i)
 
 # test_xs, test_ys = image_list[13].reshape((1, 160, 160)), label_list[i]
 print("test accuracy %g"%accuracy.eval(feed_dict={
