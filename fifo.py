@@ -60,8 +60,10 @@ class FIFO_Queue:
     :param self.input_df, col: id, cancer
     """
     def enqueue_from_df(self):
+        # dfList = [self.input_df, self.input_df]
+        # double = pd.concat(dfList)
         for index, row in self.input_df.iterrows():
-            print "looping " + str(index)
+            # print "looping " + str(index)
             if self.coord.should_stop():
                 print "queue stop signal received"
                 break
@@ -77,7 +79,7 @@ class FIFO_Queue:
     dequeue one element
     """
     def dequeue_one(self):
-        print "dequeue started. "
+    #    print "dequeue started. "
         one_data, one_label = self.sess.run([self.data_sample, self.label_sample])
         return one_data, one_label
 
