@@ -56,9 +56,9 @@ def read_image_from_split(split_df, image_folder):
         labels.append(label)
     return images, labels
 
-def read_and_sample(file_path):
+def read_prediction(file_path):
     df = pd.read_csv(file_path)
-
+    return df
 
 """
 generate random split index
