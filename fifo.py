@@ -5,7 +5,8 @@ import pandas as pd
 import time
 
 class FIFO_Queue:
-    BATCH_SIZE = 10
+    BATCH_SIZE = 5
+
     def __init__(self, capacity, feature_input_shape, label_input_shape, input_data_folder, input_label_file, input_df, sess, coord):
         self.feature_input_shape = feature_input_shape
         self.label_input_shape = label_input_shape
@@ -23,14 +24,12 @@ class FIFO_Queue:
         self.enqueue_op = self.q.enqueue([self.feature_placeholder, self.label_placeholder])
         self.data_sample, self.label_sample = self.q.dequeue()
         self.data_many_sample, self.label_many_sample = self.q.dequeue_many(self.BATCH_SIZE)
-    
-    
-    
+
     """
-        directly read patient from csv file and load image from input folder
-        :param self.input_data_folder
-        :param self.input_label_file
-        """
+    directly read patient from csv file and load image from input folder
+    :param self.input_data_folder
+    :param self.input_label_file
+    """
     
     def load_and_enqueue_from_file(self):
         i = 1
@@ -52,14 +51,11 @@ class FIFO_Queue:
                 self.sess.run(self.enqueue_op, feed_dict={self.feature_placeholder: d3_data, self.label_placeholder: label_value})
                 i += 1
                 print("thread ended for loop " + str(i))
-
-def dequeue(self):
-    return self.q.dequeue()
     
     """
-        enqueue according to a df describing input. This method is used for enqueuing df_train
-        :param self.input_df, col: id, cancer
-        """
+    enqueue according to a df describing input. This method is used for enqueuing df_train
+    :param self.input_df, col: id, cancer
+    """
     def enqueue_from_df(self):
         # dfList = [self.input_df, self.input_df]
         # double = pd.concat(dfList)
@@ -75,22 +71,23 @@ def dequeue(self):
             except:
                 continue
             self.sess.run(self.enqueue_op, feed_dict={self.feature_placeholder: image_data, self.label_placeholder: label_value})
-
-"""
+            print("Enqueue data...")
+    """
     dequeue one element
     """
-        def dequeue_one(self):
+    def dequeue_one(self):
         #    print "dequeue started. "
         one_data, one_label = self.sess.run([self.data_sample, self.label_sample])
         return one_data, one_label
 
-"""
+    """
     cancel queue op
     """
-        def cancel_pending(self):
+    def cancel_pending(self):
         op = self.q.close(cancel_pending_enqueues=True)
         self.sess.run(op)
 
-def dequeue_many(self):
-    data, label = self.sess.run([self.data_many_sample, self.label_many_sample])
+    def dequeue_many(self):
+        data, label = self.sess.run([self.data_many_sample, self.label_many_sample])
+        print("Dequeue many data...")
         return data, label
