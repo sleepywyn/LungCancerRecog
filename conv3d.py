@@ -44,15 +44,14 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 def conv3d(x, W):
-    return tf.nn.conv3d(x, W, strides=[1, 1, 1, 1, 1],
-                        padding='SAME')  # [batch_size, mov_z, mov_x, mov_y, input channel]
+    return tf.nn.conv3d(x, W, strides=[1, 1, 1, 1, 1], padding='SAME')  # [batch_size, mov_z, mov_x, mov_y, input channel]
 
 def max_pool_2X2X2(x):
     return tf.nn.max_pool3d(x, ksize=[1, 2, 2, 2, 1], strides=[1, 2, 2, 2, 1], padding='SAME')
 
 #config = tf.ConfigProto()
 #config.gpu_options.allow_growth = True
-sess = tf.Session()
+sess = tf.InteractiveSession()
 #### simple_load test images ###
 df_train, df_test = sr.read_and_split("./data/stage1_labels.csv", train_seg)
 test_images_list, test_labels_list = sr.read_image_from_split(df_test, "./data/d3_images_seg_mid")
@@ -74,13 +73,11 @@ t.start()
 x = tf.placeholder(tf.float32, [None, 64, 128, 128], name='x')
 y_ = tf.placeholder(tf.float32, [None, 2], name='y_')
 
-x_image = tf.reshape(x, [-1, 64, 128, 128,
-                         1])  # [-1, width, height, color channel]  -1 means that the length in that dimension is inferred
+x_image = tf.reshape(x, [-1, 64, 128, 128, 1])  # [-1, width, height, color channel]  -1 means that the length in that dimension is inferred
 
 ##------- Layer1 -------##
 with tf.name_scope('weights_conv1'):
-    W_conv1 = weight_variable([5, 5, 5, 1,
-                               16])  # [filter_size, filter_size, num_input_channels, num_filters (k value, sometimes called output channel. This is NOT RGB channel)]
+    W_conv1 = weight_variable([5, 5, 5, 1, 16])  # [filter_size, filter_size, num_input_channels, num_filters (k value, sometimes called output channel. This is NOT RGB channel)]
     variable_summaries(W_conv1)
 b_conv1 = bias_variable([16])
 
@@ -171,32 +168,33 @@ queue.close()
 
 print "===========Prediction start===================================="
 
-df_prediction = sr.read_prediction("/path/to/sample/submission")
+df_prediction = sr.read_prediction("./data/stage1_sample_submission.csv")
 
 coord_predict = tf.train.Coordinator()
-predict_queue  = fifo.FIFO_Queue(capacity=q_capacity, feature_input_shape=[64, 128, 128],
+predict_queue  = fifo.FIFO_Queue(capacity=q_capacity, 
+                        feature_input_shape=[64, 128, 128],
                         label_input_shape=[],
                         input_data_folder="./data/d3_images_seg_mid",
                         input_label_file="",
                         input_df=df_prediction,
                         sess=sess,
                         coord=coord_predict)
-t2 = threading.Thread(target=queue.enqueue_from_df, name="enqueue_prediction_data")
+t2 = threading.Thread(target=predict_queue.enqueue_from_df, name="enqueue_prediction_data")
 t2.start()
 
-for i in range(df_prediction.size()):
-    deq_xs, deq_ys = queue.dequeue_many()
+for i in range(df_prediction.shape[0] / dequeue_size):
+    deq_xs, deq_ys = predict_queue.dequeue_many()
     batch_xs, batch_ys = deq_xs.reshape(dequeue_size, 64, 128, 128), map(one_hot, deq_ys.reshape(dequeue_size, 1))
 
     batch_prediction = sess.run(prediction_op, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
-    for j in batch_prediction:
-        df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j]
+    for j in range(batch_prediction.shape[0]):
+        df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j, 1]
 
 print df_prediction
+df_prediction.to_csv("/home/Administrator/lung_cancer/LungCancerRecog/data/pred.csv")
+
 
 coord_predict.request_stop()
 predict_queue.cancel_pending()
 coord_predict.join([t2])
 predict_queue.close()
-
-

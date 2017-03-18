@@ -74,7 +74,9 @@ class FIFO_Queue:
                 image_data = np.load(self.input_data_folder + "/" + patient_id + ".npy")
             except:
                 continue
+            print("Ready to Enqueue...")
             self.sess.run(self.enqueue_op, feed_dict={self.feature_placeholder: image_data, self.label_placeholder: label_value})
+            print("Enqueued data")
 
     """
     dequeue one element
@@ -93,6 +95,7 @@ class FIFO_Queue:
 
     def dequeue_many(self):
         data, label = self.sess.run([self.data_many_sample, self.label_many_sample])
+        print("Dequeue done...")
         return data, label
 
     def close(self):
