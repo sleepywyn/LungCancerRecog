@@ -5,7 +5,7 @@ import pandas as pd
 import time
 
 class FIFO_Queue:
-    BATCH_SIZE = 5
+    BATCH_SIZE = 2
 
     def __init__(self, capacity, feature_input_shape, label_input_shape, input_data_folder, input_label_file, input_df, sess, coord):
         self.feature_input_shape = feature_input_shape
@@ -57,9 +57,9 @@ class FIFO_Queue:
     :param self.input_df, col: id, cancer
     """
     def enqueue_from_df(self):
-        # dfList = [self.input_df, self.input_df]
-        # double = pd.concat(dfList)
-        for index, row in self.input_df.iterrows():
+        dfList = [self.input_df, self.input_df]
+        double = pd.concat(dfList)
+        for index, row in double.iterrows():
             # print "looping " + str(index)
             if self.coord.should_stop():
                 print "queue stop signal received"

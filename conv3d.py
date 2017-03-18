@@ -8,11 +8,12 @@ import simple_reader as sr
 Tensor board visualization method
 """
 summaries_dir = "/home/Administrator/lung_cancer/LungCancerRecog/tensor_board"
-q_capacity = 10
-dequeue_size = 5
-train_seg = 0.9
-iter_num = 1000 / dequeue_size
-step_size = 5e-4
+q_capacity = 4
+dequeue_size = 2
+train_seg = 0.98
+iter_num = 2000 / dequeue_size
+step_size = 5e-5
+fc_num = 300
 
 def variable_summaries(var):
     """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
@@ -46,7 +47,9 @@ def conv3d(x, W):
 def max_pool_2X2X2(x):
     return tf.nn.max_pool3d(x, ksize=[1, 2, 2, 2, 1], strides=[1, 2, 2, 2, 1], padding='SAME')
 
-sess = tf.InteractiveSession()
+#config = tf.ConfigProto()
+#config.gpu_options.allow_growth = True
+sess = tf.Session()
 #### simple_load test images ###
 df_train, df_test = sr.read_and_split("./data/stage1_labels.csv", train_seg)
 test_images_list, test_labels_list = sr.read_image_from_split(df_test, "./data/d3_images_seg_mid")
@@ -91,8 +94,8 @@ h_pool2 = max_pool_2X2X2(h_conv2)
 
 ##------- Fully Connected Layer1 -------##
 # W_fc1 = weight_variable([7 * 7 * 64, 1024])
-W_fc1 = weight_variable([16 * 32 * 32 * 64, 200])
-b_fc1 = bias_variable([200])
+W_fc1 = weight_variable([16 * 32 * 32 * 64, fc_num])
+b_fc1 = bias_variable([fc_num])
 
 h_pool2_flat = tf.reshape(h_pool2, [-1, 16 * 32 * 32 * 64])  # flatten the layer. prepare for fully connected layer
 h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
@@ -102,7 +105,7 @@ keep_prob = tf.placeholder(tf.float32)
 h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
 
 ##------- Final Layer -------##
-W_fc2 = weight_variable([200, 2])
+W_fc2 = weight_variable([fc_num, 2])
 b_fc2 = bias_variable([2])
 
 y_conv = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
