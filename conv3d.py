@@ -4,6 +4,7 @@ import numpy as np
 import fifo
 import threading
 import simple_reader as sr
+
 """
 Tensor board visualization method
 """
@@ -30,6 +31,7 @@ def variable_summaries(var):
 """
 Computation function
 """
+
 def one_hot(x):
     return np.array([1, 0]) if x == 0 else np.array([0, 1])
 
@@ -42,7 +44,8 @@ def bias_variable(shape):
     return tf.Variable(initial)
 
 def conv3d(x, W):
-    return tf.nn.conv3d(x, W, strides=[1, 1, 1, 1, 1], padding='SAME')  # [batch_size, mov_z, mov_x, mov_y, input channel]
+    return tf.nn.conv3d(x, W, strides=[1, 1, 1, 1, 1],
+                        padding='SAME')  # [batch_size, mov_z, mov_x, mov_y, input channel]
 
 def max_pool_2X2X2(x):
     return tf.nn.max_pool3d(x, ksize=[1, 2, 2, 2, 1], strides=[1, 2, 2, 2, 1], padding='SAME')
@@ -54,7 +57,6 @@ sess = tf.Session()
 df_train, df_test = sr.read_and_split("./data/stage1_labels.csv", train_seg)
 test_images_list, test_labels_list = sr.read_image_from_split(df_test, "./data/d3_images_seg_mid")
 test_images, test_labels = np.asarray(test_images_list), np.stack(map(one_hot, test_labels_list))
-
 
 # image_list, label_list = simple_reader.read_file("./data/test.csv", "./data/d3_slices")
 coord = tf.train.Coordinator()
@@ -69,14 +71,16 @@ queue = fifo.FIFO_Queue(capacity=q_capacity, feature_input_shape=[64, 128, 128],
 t = threading.Thread(target=queue.enqueue_from_df, name="enqueue")
 t.start()
 
-x  = tf.placeholder(tf.float32, [None, 64, 128, 128], name='x')
-y_ = tf.placeholder(tf.float32, [None, 2],  name='y_')
+x = tf.placeholder(tf.float32, [None, 64, 128, 128], name='x')
+y_ = tf.placeholder(tf.float32, [None, 2], name='y_')
 
-x_image = tf.reshape(x, [-1, 64, 128, 128, 1]) #[-1, width, height, color channel]  -1 means that the length in that dimension is inferred
+x_image = tf.reshape(x, [-1, 64, 128, 128,
+                         1])  # [-1, width, height, color channel]  -1 means that the length in that dimension is inferred
 
 ##------- Layer1 -------##
 with tf.name_scope('weights_conv1'):
-    W_conv1 = weight_variable([5, 5, 5, 1, 16]) # [filter_size, filter_size, num_input_channels, num_filters (k value, sometimes called output channel. This is NOT RGB channel)]
+    W_conv1 = weight_variable([5, 5, 5, 1,
+                               16])  # [filter_size, filter_size, num_input_channels, num_filters (k value, sometimes called output channel. This is NOT RGB channel)]
     variable_summaries(W_conv1)
 b_conv1 = bias_variable([16])
 
@@ -117,9 +121,15 @@ with tf.name_scope('cross_entropy'):
 train_step = tf.train.AdamOptimizer(step_size).minimize(cross_entropy)
 with tf.name_scope('accuracy'):
     with tf.name_scope('correct_prediction'):
-        correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))  # get the max value index on dimension one
+        correct_prediction = tf.equal(tf.argmax(y_conv, 1),
+                                      tf.argmax(y_, 1))  # get the max value index on dimension one
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))  # accuracy function
 tf.summary.scalar('accuracy', accuracy)
+
+##------- Predict Op-------##
+with tf.name_scope("final_prediction"):
+    prediction_op = tf.nn.softmax(logits=y_conv)
+##-------End of Predict Op-------##
 
 merged = tf.summary.merge_all()
 train_writer = tf.summary.FileWriter(summaries_dir + '/train', sess.graph)
@@ -135,12 +145,12 @@ for i in range(iter_num):
     print("Dequeue done")
     # batch_xs, batch_ys = image_list[i].reshape((1, 160, 160)), label_list[i]
     # batch_ys = np.array([[1, 0]]) if batch_ys == 0 else np.array([[0, 1]])
-    
+
     batch_xs, batch_ys = deq_xs.reshape(dequeue_size, 64, 128, 128), map(one_hot, deq_ys.reshape(dequeue_size, 1))
     # batch_xs, batch_ys = deq_xs.reshape(1, 32, 64, 64), deq_ys
     # batch_ys = np.array([[1, 0]]) if batch_ys == 0 else np.array([[0, 1]])
-    
-    if i % 4 == 0 and i != 0:            # alternative. calculating accuracy regarding to test set.
+
+    if i % 4 == 0 and i != 0:  # alternative. calculating accuracy regarding to test set.
         summary, acc = sess.run([merged, accuracy], feed_dict={x: test_images, y_: test_labels, keep_prob: 1.0})
         test_writer.add_summary(summary, i)
         print(i, acc)
@@ -149,10 +159,44 @@ for i in range(iter_num):
         summary, _ = sess.run([merged, train_step], feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
         train_writer.add_summary(summary, i)
 
-print("test accuracy %g"%accuracy.eval(feed_dict={
-                                       x: test_images, y_: test_labels, keep_prob: 1.0}))
+print("test accuracy %g" % accuracy.eval(feed_dict={
+    x: test_images, y_: test_labels, keep_prob: 1.0}))
 
 coord.request_stop()
 print coord.should_stop()
 queue.cancel_pending()
 coord.join([t])
+queue.close()
+
+
+print "===========Prediction start===================================="
+
+df_prediction = sr.read_prediction("/path/to/sample/submission")
+
+coord_predict = tf.train.Coordinator()
+predict_queue  = fifo.FIFO_Queue(capacity=q_capacity, feature_input_shape=[64, 128, 128],
+                        label_input_shape=[],
+                        input_data_folder="./data/d3_images_seg_mid",
+                        input_label_file="",
+                        input_df=df_prediction,
+                        sess=sess,
+                        coord=coord_predict)
+t2 = threading.Thread(target=queue.enqueue_from_df, name="enqueue_prediction_data")
+t2.start()
+
+for i in range(df_prediction.size()):
+    deq_xs, deq_ys = queue.dequeue_many()
+    batch_xs, batch_ys = deq_xs.reshape(dequeue_size, 64, 128, 128), map(one_hot, deq_ys.reshape(dequeue_size, 1))
+
+    batch_prediction = sess.run(prediction_op, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
+    for j in batch_prediction:
+        df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j]
+
+print df_prediction
+
+coord_predict.request_stop()
+predict_queue.cancel_pending()
+coord_predict.join([t2])
+predict_queue.close()
+
+

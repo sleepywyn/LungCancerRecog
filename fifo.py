@@ -6,7 +6,6 @@ import time
 
 class FIFO_Queue:
     BATCH_SIZE = 2
-
     def __init__(self, capacity, feature_input_shape, label_input_shape, input_data_folder, input_label_file, input_df, sess, coord):
         self.feature_input_shape = feature_input_shape
         self.label_input_shape = label_input_shape
@@ -18,19 +17,21 @@ class FIFO_Queue:
         self.coord = coord
         self.feature_placeholder = tf.placeholder(tf.float32, shape=feature_input_shape)
         self.label_placeholder = tf.placeholder(tf.int32, shape=label_input_shape)
-        
+
         # create queue and operation
         self.q = tf.FIFOQueue(capacity=capacity, dtypes=[tf.float32, tf.int32], shapes=[feature_input_shape, label_input_shape])
         self.enqueue_op = self.q.enqueue([self.feature_placeholder, self.label_placeholder])
         self.data_sample, self.label_sample = self.q.dequeue()
         self.data_many_sample, self.label_many_sample = self.q.dequeue_many(self.BATCH_SIZE)
 
+
+
     """
     directly read patient from csv file and load image from input folder
     :param self.input_data_folder
     :param self.input_label_file
     """
-    
+
     def load_and_enqueue_from_file(self):
         i = 1
         with open(self.input_label_file) as label_file:
@@ -51,7 +52,10 @@ class FIFO_Queue:
                 self.sess.run(self.enqueue_op, feed_dict={self.feature_placeholder: d3_data, self.label_placeholder: label_value})
                 i += 1
                 print("thread ended for loop " + str(i))
-    
+
+    def dequeue(self):
+        return self.q.dequeue()
+
     """
     enqueue according to a df describing input. This method is used for enqueuing df_train
     :param self.input_df, col: id, cancer
@@ -71,12 +75,12 @@ class FIFO_Queue:
             except:
                 continue
             self.sess.run(self.enqueue_op, feed_dict={self.feature_placeholder: image_data, self.label_placeholder: label_value})
-            print("Enqueue data...")
+
     """
     dequeue one element
     """
     def dequeue_one(self):
-        #    print "dequeue started. "
+    #    print "dequeue started. "
         one_data, one_label = self.sess.run([self.data_sample, self.label_sample])
         return one_data, one_label
 
@@ -89,5 +93,7 @@ class FIFO_Queue:
 
     def dequeue_many(self):
         data, label = self.sess.run([self.data_many_sample, self.label_many_sample])
-        print("Dequeue many data...")
         return data, label
+
+    def close(self):
+        self.q.close()
