@@ -30,7 +30,7 @@ train_seg = 0.9
 iter_num = 2000 / dequeue_size
 
 summaries_dir = "/opt/LungCancerRecog/board"
-result_path = "/home/Administrator/lung_cancer/LungCancerRecog/data/pred.csv"
+result_path = "/opt/LungCancerRecog/data/pred.csv"
 
 
 def main():
@@ -58,15 +58,15 @@ def main():
     x = tf.placeholder(tf.float32, [None, graph_feat_num * graph_num], name='x')
     y_ = tf.placeholder(tf.float32, [None, 2], name='y_')
 
-    W_fc_mid = weight_variable([graph_feat_num * graph_num, graph_num * mid_num])
-    bias_mid = weight_variable([graph_num * mid_num])
+#    W_fc_mid = weight_variable([graph_feat_num * graph_num, graph_num * mid_num])
+#    bias_mid = weight_variable([graph_num * mid_num])
 
-    midMap = tf.nn.relu(tf.matmul(x, W_fc_mid) + bias_mid)
+#    midMap = tf.nn.relu(tf.matmul(x, W_fc_mid) + bias_mid)
 
-    W_fc = weight_variable([graph_num * mid_num, 2])
+    W_fc = weight_variable([graph_num * graph_feat_num, 2])
     bias = weight_variable([2])
 
-    y_predict = tf.matmul(midMap, W_fc) + bias
+    y_predict = tf.matmul(x, W_fc) + bias
 
     with tf.name_scope('cross_entropy'):
         cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_predict))
@@ -114,35 +114,34 @@ def main():
 
     print "===========Prediction start===================================="
 
-    # df_prediction = sr.read_prediction("./data/stage1_sample_submission.csv")
-    #
-    # coord_predict = tf.train.Coordinator()
-    # predict_queue = fifo.FIFO_Queue(capacity=q_capacity,
-    #                                 feature_input_shape=[graph_num * graph_feat_num],
-    #                                 label_input_shape=[],
-    #                                 input_data_folder="./data/d3_images_seg_mid",
-    #                                 input_label_file="",
-    #                                 input_df=df_prediction,
-    #                                 sess=sess,
-    #                                 coord=coord_predict)
-    # t2 = threading.Thread(target=predict_queue.enqueue_from_df, name="enqueue_prediction_data")
-    # t2.start()
-    #
-    # for i in range(df_prediction.shape[0] / dequeue_size):
-    #     deq_xs, deq_ys = predict_queue.dequeue_many()
-    #     batch_xs, batch_ys = deq_xs.reshape(dequeue_size, graph_num * graph_feat_num), map(one_hot, deq_ys.reshape(dequeue_size, 1))
-    #
-    #     batch_prediction = sess.run(prediction_op, feed_dict={x: batch_xs, y_: batch_ys})
-    #     for j in range(batch_prediction.shape[0]):
-    #         df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j, 1]
-    #
-    # print df_prediction
-    # df_prediction.to_csv(result_path)
-    #
-    # coord_predict.request_stop()
-    # predict_queue.cancel_pending()
-    # coord_predict.join([t2])
-    # predict_queue.close()
+    df_prediction = sr.read_prediction("./data/stage1_sample_submission.csv")
+    
+    coord_predict = tf.train.Coordinator()
+    predict_queue = fifo.FIFO_Queue(capacity=q_capacity,
+                                     feature_input_shape=[graph_num, graph_feat_num],
+                                     label_input_shape=[],
+                                     input_data_folder="./out",
+                                     input_label_file="",
+                                     input_df=df_prediction,
+                                     sess=sess,
+                                     coord=coord_predict)
+    t2 = threading.Thread(target=predict_queue.enqueue_from_df, name="enqueue_prediction_data")
+    t2.start()
+    
+    for i in range(df_prediction.shape[0] / dequeue_size):
+        deq_xs, deq_ys = predict_queue.dequeue_many()
+        batch_xs, batch_ys = deq_xs.reshape(dequeue_size, graph_num * graph_feat_num), map(one_hot, deq_ys.reshape(dequeue_size, 1))
+    
+        batch_prediction = sess.run(prediction_op, feed_dict={x: batch_xs, y_: batch_ys})
+        for j in range(batch_prediction.shape[0]):
+            df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j, 1]
+    
+    print df_prediction
+    df_prediction.to_csv(result_path)
+    coord_predict.request_stop()
+    predict_queue.cancel_pending()
+    coord_predict.join([t2])
+    predict_queue.close()
 
 
 main()
