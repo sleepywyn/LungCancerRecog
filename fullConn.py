@@ -21,15 +21,15 @@ def weight_variable(shape):
 
 graph_feat_num = 2048
 graph_num = 21
-step_size = 1e-4
-mid_num = 128
+step_size = 1e-5
+mid_num = 256
 
 q_capacity = 4
 dequeue_size = 2
-train_seg = 0.98
+train_seg = 0.9
 iter_num = 2000 / dequeue_size
 
-summaries_dir = "/Users/ibm/GitRepo/tensor_board/log_new"
+summaries_dir = "/opt/LungCancerRecog/board"
 result_path = "/home/Administrator/lung_cancer/LungCancerRecog/data/pred.csv"
 
 
@@ -38,14 +38,14 @@ def main():
     tf.InteractiveSession()
 
     df_train, df_test = sr.read_and_split("./data/stage1_labels.csv", train_seg)
-    test_features_list, test_labels_list = sr.read_image_from_split(df_test, "./data/features_sample")
-    test_features, test_labels = np.asarray(test_features_list), np.stack(map(one_hot, test_labels_list))
+    test_features_list, test_labels_list = sr.read_image_from_split(df_test, "./out")
+    test_features, test_labels = np.asarray([a.flatten() for a in test_features_list]), np.stack(map(one_hot, test_labels_list))
 
 
     coord = tf.train.Coordinator()
     queue = fifo.FIFO_Queue(capacity=q_capacity, feature_input_shape=[graph_num, graph_feat_num],
                             label_input_shape=[],
-                            input_data_folder="./data/features_sample",
+                            input_data_folder="./out",
                             input_label_file="",
                             input_df=df_train,
                             sess=sess,

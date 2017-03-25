@@ -96,6 +96,7 @@ class FIFO_Queue:
     def dequeue_many(self):
         data, label = self.sess.run([self.data_many_sample, self.label_many_sample])
         print("Dequeue done...")
+        print(data.shape)
         return data, label
 
     def close(self):
