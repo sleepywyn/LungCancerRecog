@@ -10,11 +10,16 @@ from skimage import measure, morphology, filters
 from skimage.segmentation import clear_border
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from multiprocessing import Pool
+from functools import partial
+import pretrain_mx
 
-input_folder = "./data/sample_images"
-output_folder = "./data/d3_images_mid"
-output_seg_folder = "./data/d3_images_seg_mid"
-thread_num = 2
+input_folder = "./stage1"
+output_folder = "./out"
+output_seg_folder = "./out"
+thread_num = 3
+
+IMG_PX_SIZE = 224
+Z_PX_SIZE = 160
 
 # 1. Load Dicom files
 def load_slices(path):
@@ -216,8 +221,6 @@ def zero_center(image):
 
 # 7. resize
 def resize(image, axis):
-    IMG_PX_SIZE = 64
-    Z_PX_SIZE = 32
     if axis == 0:
         image_resized_list = []
         for s_num in range(image.shape[0]):
@@ -305,10 +308,35 @@ def preprocess_segment(patient):
     patient_d3_image_resample_clean_resized_xyz = resize(patient_d3_image_resample_clean_resized, 1)
     # plot_3d(patient_d3_image_resample_clean_resized, 400)  # preview 3d image
     # plt.show()
-
+    
     output_patient = output_seg_folder + "/" + patient
     np.save(output_patient, patient_d3_image_resample_clean_resized_xyz)
     print("INFO: Saving segmented ndarray of patient %s ... ..." % patient)
+    print "=============================================================="
+
+def preprocess_segment_pretrain(pretrained_model, patient):
+    print("INFO: Processing segment image and do pretraining for patient " + str(patient))
+    patient_folder = input_folder + "/" + patient
+    patient_slices = load_slices(patient_folder)
+    if patient_slices is None:
+        print("WARN: No slices for patient " + str(patient))
+        return
+    for inx, slice in enumerate(patient_slices):
+        patient_slices[inx].pixel_array = get_segmented_lungs(slice.pixel_array)
+    print("INFO: Applied binary mask during segmentation")
+    patient_d3_image = convert_hu(patient_slices)
+    patient_d3_image_resample, new_spacing = resample(patient_d3_image, patient_slices)
+    print("INFO: Before resampling, patient's image shape is " + str(patient_d3_image.shape))
+    print("INFO: After  resampling, patient's image shape is " + str(patient_d3_image_resample.shape))
+    print("INFO: New spacing is " + str(new_spacing))  # [ 1.  0.9999996  0.9999996]
+
+    patient_d3_image_resample_clean = zero_center(normalize(patient_d3_image_resample))
+    patient_d3_image_resample_clean_resized = resize(patient_d3_image_resample_clean, 0)
+    patient_d3_image_resample_clean_resized_xyz = resize(patient_d3_image_resample_clean_resized, 1)
+
+    pretrain_mx.calc_features(pretrained_model, patient, patient_d3_image_resample_clean_resized_xyz, output_seg_folder)
+
+    print("INFO: Saving segmented feature of patient %s ... ..." % patient)
     print "=============================================================="
 
 def decode_label(label):
@@ -337,6 +365,7 @@ def observe_thickness(path):
 ############################
 if __name__ == '__main__':
     patients = os.listdir(input_folder)
+    pretrained_model = pretrain_mx.get_extractor()
+    func = partial(preprocess_segment_pretrain, pretrained_model)
     pool = Pool(thread_num)
-    #pool.map(preprocess, patients)
-    pool.map(preprocess_segment, patients)
+    pool.map(func, patients)
