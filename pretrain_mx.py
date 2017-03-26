@@ -31,6 +31,9 @@ def get_data_id(patient_data):
         tmp = []
         for j in range(3):
             img = patient_data[i + j]
+            # convert image to RGB based
+            img = 255.0 / np.amax(img) * img
+            img = cv2.equalizeHist(img.astype(np.uint8))
             tmp.append(img)
 
         tmp = np.array(tmp)
