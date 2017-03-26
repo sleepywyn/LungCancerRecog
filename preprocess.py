@@ -358,7 +358,7 @@ def preprocess_segment_pretrain_mx(pretrained_model, patient):
     print("INFO: New spacing is " + str(new_spacing))  # [ 1.  0.9999996  0.9999996]
 
     #patient_d3_image_resample_clean = zero_center(normalize(patient_d3_image_resample))
-    patient_d3_image_resample_clean_resized = resize(patient_d3_image_resample_clean, 0)
+    patient_d3_image_resample_clean_resized = resize(patient_d3_image_resample, 0)
     patient_d3_image_resample_clean_resized_xyz = resize(patient_d3_image_resample_clean_resized, 1)
 
     pretrain_mx.calc_features(pretrained_model, patient, patient_d3_image_resample_clean_resized_xyz, output_seg_folder)
