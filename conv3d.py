@@ -191,7 +191,7 @@ for i in range(df_prediction.shape[0] / dequeue_size):
         df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j, 1]
 
 print df_prediction
-df_prediction.to_csv("/home/Administrator/lung_cancer/LungCancerRecog/data/pred.csv")
+df_prediction.to_csv("/home/Administrator/lung_cancer/LungCancerRecog/data/pred.csv", index=False)
 
 
 coord_predict.request_stop()

@@ -20,15 +20,17 @@ def weight_variable(shape):
     return tf.Variable(initial)
 
 graph_feat_num = 2048
-graph_num = 21
+graph_num = 60
 step_size = 1e-5
-mid_num = 256
+mid_num = 128
+mid = True
 
 q_capacity = 4
 dequeue_size = 2
 train_seg = 0.9
 iter_num = 2000 / dequeue_size
 
+feat_folder = "./out_feat"
 summaries_dir = "/opt/LungCancerRecog/board"
 result_path = "/opt/LungCancerRecog/data/pred.csv"
 
@@ -38,14 +40,14 @@ def main():
     tf.InteractiveSession()
 
     df_train, df_test = sr.read_and_split("./data/stage1_labels.csv", train_seg)
-    test_features_list, test_labels_list = sr.read_image_from_split(df_test, "./out")
+    test_features_list, test_labels_list = sr.read_image_from_split(df_test, feat_folder)
     test_features, test_labels = np.asarray([a.flatten() for a in test_features_list]), np.stack(map(one_hot, test_labels_list))
 
 
     coord = tf.train.Coordinator()
     queue = fifo.FIFO_Queue(capacity=q_capacity, feature_input_shape=[graph_num, graph_feat_num],
                             label_input_shape=[],
-                            input_data_folder="./out",
+                            input_data_folder=feat_folder,
                             input_label_file="",
                             input_df=df_train,
                             sess=sess,
@@ -58,15 +60,17 @@ def main():
     x = tf.placeholder(tf.float32, [None, graph_feat_num * graph_num], name='x')
     y_ = tf.placeholder(tf.float32, [None, 2], name='y_')
 
-#    W_fc_mid = weight_variable([graph_feat_num * graph_num, graph_num * mid_num])
-#    bias_mid = weight_variable([graph_num * mid_num])
-
-#    midMap = tf.nn.relu(tf.matmul(x, W_fc_mid) + bias_mid)
-
-    W_fc = weight_variable([graph_num * graph_feat_num, 2])
-    bias = weight_variable([2])
-
-    y_predict = tf.matmul(x, W_fc) + bias
+    if mid:
+        W_fc_mid = weight_variable([graph_num * graph_feat_num, graph_num * mid_num])
+        bias_mid = weight_variable([graph_num * mid_num])
+        midMap = tf.nn.relu(tf.matmul(x, W_fc_mid) + bias_mid)
+        W_fc = weight_variable([graph_num * mid_num, 2])
+        bias = weight_variable([2])
+        y_predict = tf.matmul(midMap, W_fc) + bias
+    else:
+        W_fc = weight_variable([graph_num * graph_feat_num, 2])
+        bias = weight_variable([2])
+        y_predict = tf.matmul(x, W_fc) + bias
 
     with tf.name_scope('cross_entropy'):
         cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_predict))
@@ -120,7 +124,7 @@ def main():
     predict_queue = fifo.FIFO_Queue(capacity=q_capacity,
                                      feature_input_shape=[graph_num, graph_feat_num],
                                      label_input_shape=[],
-                                     input_data_folder="./out",
+                                     input_data_folder=feat_folder,
                                      input_label_file="",
                                      input_df=df_prediction,
                                      sess=sess,
@@ -137,7 +141,7 @@ def main():
             df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j, 1]
     
     print df_prediction
-    df_prediction.to_csv(result_path)
+    df_prediction.to_csv(result_path, index=False)
     coord_predict.request_stop()
     predict_queue.cancel_pending()
     coord_predict.join([t2])

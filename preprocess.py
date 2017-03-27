@@ -393,7 +393,7 @@ def observe_thickness(path):
 if __name__ == '__main__':
     patients = os.listdir(input_folder)
     pretrained_model = pretrain_mx.get_extractor()
-    if mx == True:
+    if mx:
         func = partial(preprocess_segment_pretrain_mx, pretrained_model)
     else:
         func = partial(preprocess_segment_pretrain, pretrained_model)
