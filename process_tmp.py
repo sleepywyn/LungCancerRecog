@@ -4,9 +4,9 @@ import pretrain_mx
 from multiprocessing import Pool
 from functools import partial
 
-mid_npy_folder = "/opt/lung_cancer/d3_images_seg_mid"
-thread_num = 8
-out_folder = "./out"
+mid_npy_folder = "./out"
+thread_num = 10
+out_folder = "./out_feat"
 
 def process(pretrained_model, patient_id):
     patient_data = np.load("%s/%s.npy" % (mid_npy_folder, patient_id))
