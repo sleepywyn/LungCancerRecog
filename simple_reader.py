@@ -24,6 +24,28 @@ def read_file(label_file, image_folder):
             labels.append(decode_label(label))
         return data_file, labels
 
+def read_luna_csv(label_file):
+    df = pd.read_csv(label_file)
+    grouped = df.groupby("seriesuid").agg({
+        'coordX' : lambda x: list(x),
+        'coordY': lambda x: list(x),
+        'coordZ': lambda x: list(x),
+        'diameter_mm': lambda x: list(x)
+    })
+    # result = grouped.apply(lambda row: [row['coordX'][0]] + [row['coordY'][0]], axis=1)
+    grouped['nodule'] = grouped.apply(lambda row: concatRow(row), axis=1)
+    return grouped[['nodule']]
+
+def concatRow(row):
+    l = []
+    for x in range(len(row['coordX'])):
+        l.append([row['coordX'][x]] + [row['coordY'][x]] + [row['coordZ'][x]] + [row['diameter_mm'][x]])
+    return l
+
+# def concatCol(col: List):
+#     l = []
+#     [l.append(x) for x in col]
+#     return l
 
 """
 split the label file according to specified ratio
