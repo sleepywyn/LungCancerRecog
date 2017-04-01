@@ -338,15 +338,15 @@ def preprocess_segment_pretrain(pretrained_model, patient):
 
         #patient_d3_image_resample_clean = zero_center(normalize(patient_d3_image_resample))
         patient_d3_image_resample_clean_resized = resize(patient_d3_image_resample, 0)
-        patient_d3_image_resample_clean_resized_xyz = resize(patient_d3_image_resample_clean_resized, 1)
+        #patient_d3_image_resample_clean_resized_xyz = resize(patient_d3_image_resample_clean_resized, 1)
 
         #pretrain_mx.calc_features(pretrained_model, patient, patient_d3_image_resample_clean_resized_xyz, output_seg_folder)
         output_patient = output_seg_folder + "/" + patient
-        np.save(output_patient, patient_d3_image_resample_clean_resized_xyz)
+        np.save(output_patient, patient_d3_image_resample_clean_resized)
         print("INFO: Saving segmented feature of patient %s ... ..." % patient)
         print "=============================================================="
     except:
-        print("bad sample encountered: " + patient)
+        print("WARN: Bad sample encountered: " + patient)
 	
 def preprocess_segment_pretrain_mx(pretrained_model, patient):
     print("INFO: Processing segment image and do pretraining for patient " + str(patient))
