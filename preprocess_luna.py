@@ -24,7 +24,7 @@ import preprocess as ps
 sample_ct = "./data_luna/subset0/1.3.6.1.4.1.14519.5.2.1.6279.6001.105756658031515062000744821260.mhd"
 input_folder = "./data_luna/subset0"
 output_folder = "./data_luna/out"
-thread_num = 5
+thread_num = 6
 
 def segment_lung_from_ct_scan(ct_scan):
     return np.asarray([get_segmented_lungs(slice) for slice in ct_scan])
@@ -192,7 +192,9 @@ format. It also takes the list of nodule locations in that CT Scan as
 input.
 '''
 def create_nodule_mask(patient):
+    print("=======================================================" + "\n")
     patientid = patient[0]
+    print("processing patient: " + patientid)
     cands = patient[1]
     # if os.path.isfile(imagePath.replace('original',SAVE_FOLDER_image)) == False:
     imagePath = input_folder + "/" + patientid + ".mhd"
@@ -237,9 +239,9 @@ def create_nodule_mask(patient):
         nodule_mask_512[z, upper_offset:-lower_offset, upper_offset:-lower_offset] = nodule_mask[z, :, :]
 
     # save images.
-    np.save(output_folder + "/" + patientid + '_lung_img.npz', lung_img_512)
-    np.save(output_folder + "/" + patientid + '_lung_mask.npz', lung_mask_512)
-    np.save(output_folder + "/" + patientid + '_nodule_mask.npz', nodule_mask_512)
+    np.savez_compressed(output_folder + "/" + patientid + '_lung_img', lung_img_512)
+    np.savez_compressed(output_folder + "/" + patientid + '_lung_mask', lung_mask_512)
+    np.savez_compressed(output_folder + "/" + patientid + '_nodule_mask', nodule_mask_512)
 
 '''
 This function takes the numpy array of CT_Scan and a list of coords from

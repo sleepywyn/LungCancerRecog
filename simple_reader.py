@@ -42,10 +42,19 @@ def concatRow(row):
         l.append([row['coordX'][x]] + [row['coordY'][x]] + [row['coordZ'][x]] + [row['diameter_mm'][x]])
     return l
 
-# def concatCol(col: List):
-#     l = []
-#     [l.append(x) for x in col]
-#     return l
+def load_npz(file):
+    return np.load(file)['arr_0']
+
+def split(df, ratio):
+    samp_num = int(df.shape[0] * ratio)
+    indices = df.index
+    rows_num = random.sample(range(df.shape[0]), samp_num)
+    rows_ix = map(lambda x: indices[x], rows_num)
+
+    df_train = df.ix[rows_ix]
+    df_test = df.drop(rows_ix)
+    return df_train, df_test
+
 
 """
 split the label file according to specified ratio
@@ -81,6 +90,14 @@ def read_image_from_split(split_df, image_folder):
 def read_prediction(file_path):
     df = pd.read_csv(file_path)
     return df
+
+def luna_unet_gen(df, data_folder):
+    # df = read_luna_csv(csv_path)
+    for index, row in df.iterrows():
+        #row['nodule']
+        image_path = data_folder + "/" + index + "_lung_img.npz"
+        ground_truth_path = data_folder + "/" + index + "_nodule_mask.npz"
+        yield (load_npz(image_path), load_npz(ground_truth_path))
 
 """
 generate random split index
