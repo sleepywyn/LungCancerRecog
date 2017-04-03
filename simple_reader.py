@@ -95,9 +95,16 @@ def luna_unet_gen(df, data_folder):
     # df = read_luna_csv(csv_path)
     for index, row in df.iterrows():
         #row['nodule']
+        print("Start fetching patient: " + index)
         image_path = data_folder + "/" + index + "_lung_img.npz"
         ground_truth_path = data_folder + "/" + index + "_nodule_mask.npz"
-        yield (load_npz(image_path), load_npz(ground_truth_path))
+        try:
+            input_3d, target_3d = load_npz(image_path), load_npz(ground_truth_path)
+        except: continue
+        for i in range(input_3d.shape[0]):
+            print("Returning data for z index: " + str(i))
+            yield (np.expand_dims(np.expand_dims(input_3d[i], axis=0), axis=0), np.expand_dims(np.expand_dims(target_3d[i], axis=0), axis=0))
+        # yield (np.expand_dims(np.expand_dims(np.mean(input_3d, axis=0), axis=0), axis=0), np.expand_dims(np.expand_dims(np.mean(target_3d, axis=0), axis=0), axis=0))
 
 """
 generate random split index
