@@ -101,7 +101,15 @@ def luna_unet_gen(df, data_folder):
         try:
             input_3d, target_3d = load_npz(image_path), load_npz(ground_truth_path)
         except: continue
-        for i in range(input_3d.shape[0]):
+
+        gen_list = []
+        slice_num = target_3d.shape[0]
+        for i in range(slice_num):
+            if np.count_nonzero(target_3d[i]) > 0:
+                gen_list.append(i)
+        gen_list += list(np.random.randint(low=20, high=slice_num - 20, size=len(gen_list)))
+        # for i in range(input_3d.shape[0]):
+        for i in gen_list:
             print("Returning data for z index: " + str(i))
             yield (np.expand_dims(np.expand_dims(input_3d[i], axis=0), axis=0), np.expand_dims(np.expand_dims(target_3d[i], axis=0), axis=0))
         # yield (np.expand_dims(np.expand_dims(np.mean(input_3d, axis=0), axis=0), axis=0), np.expand_dims(np.expand_dims(np.mean(target_3d, axis=0), axis=0), axis=0))
