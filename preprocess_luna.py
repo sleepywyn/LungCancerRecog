@@ -261,30 +261,32 @@ def get_patch_from_list(lung_img, coords, window_size=10):
 
     return output
 
-# scan, origin, spacing = load_itk(sample_ct)
-# print(spacing)
-df = sr.read_luna_csv("./data_luna/CSVFILES/annotations.csv")
+if __name__ == '__main__':
 
-print(df)
-print("*********************************************************************")
+    # scan, origin, spacing = load_itk(sample_ct)
+    # print(spacing)
+    df = sr.read_luna_csv("./data_luna/CSVFILES/annotations.csv")
 
-# testrow = df[df['seriesuid'] == '1.3.6.1.4.1.14519.5.2.1.6279.6001.105756658031515062000744821260', ]
-# print df['nodule'] == '1.3.6.1.4.1.14519.5.2.1.6279.6001.105756658031515062000744821260'
+    print(df)
+    print("*********************************************************************")
 
-testrow =  df.ix[df.index =='1.3.6.1.4.1.14519.5.2.1.6279.6001.111172165674661221381920536987']
+    # testrow = df[df['seriesuid'] == '1.3.6.1.4.1.14519.5.2.1.6279.6001.105756658031515062000744821260', ]
+    # print df['nodule'] == '1.3.6.1.4.1.14519.5.2.1.6279.6001.105756658031515062000744821260'
 
-# print testrow['nodule'].tolist()[0]
+    testrow =  df.ix[df.index =='1.3.6.1.4.1.14519.5.2.1.6279.6001.111172165674661221381920536987']
 
-patients = []
-for index, row in df.iterrows():
-    patients.append([index, row['nodule']])
-print patients
-pool = Pool(thread_num)
-pool.map(create_nodule_mask, patients)
+    # print testrow['nodule'].tolist()[0]
 
-# create_nodule_mask(["1.3.6.1.4.1.14519.5.2.1.6279.6001.111172165674661221381920536987", testrow['nodule'].tolist()[0]])
-# create_nodule_mask("1.3.6.1.4.1.14519.5.2.1.6279.6001.111172165674661221381920536987", "", testrow['nodule'].tolist()[0])
+    patients = []
+    for index, row in df.iterrows():
+        patients.append([index, row['nodule']])
+    print patients
+    pool = Pool(thread_num)
+    # pool.map(create_nodule_mask, patients)
 
-# nodule_mask = np.load("./data_luna/out/1.3.6.1.4.1.14519.5.2.1.6279.6001.111172165674661221381920536987_nodule_mask.npz.npy")
-# print np.mean(nodule_mask, axis=0)
-# print nodule_mask.shape
+    # create_nodule_mask(["1.3.6.1.4.1.14519.5.2.1.6279.6001.111172165674661221381920536987", testrow['nodule'].tolist()[0]])
+    # create_nodule_mask("1.3.6.1.4.1.14519.5.2.1.6279.6001.111172165674661221381920536987", "", testrow['nodule'].tolist()[0])
+
+    # nodule_mask = np.load("./data_luna/out/1.3.6.1.4.1.14519.5.2.1.6279.6001.111172165674661221381920536987_nodule_mask.npz.npy")
+    # print np.mean(nodule_mask, axis=0)
+    # print nodule_mask.shape
