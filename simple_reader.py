@@ -106,7 +106,7 @@ def luna_unet_gen(df, data_folder):
         slice_num = target_3d.shape[0]
         for i in range(slice_num):
             num_zero = np.count_nonzero(target_3d[i])
-            if np.count_nonzero(target_3d[i]) > 30:
+            if np.count_nonzero(target_3d[i]) > 50:
                 gen_list.append((i, num_zero))
         # gen_list += list(np.random.randint(low=20, high=slice_num - 20, size=int(len(gen_list) / 2)))
         gen_list.sort(key=lambda x: x[1], reverse=True)
