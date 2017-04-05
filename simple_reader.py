@@ -105,14 +105,19 @@ def luna_unet_gen(df, data_folder):
         gen_list = []
         slice_num = target_3d.shape[0]
         for i in range(slice_num):
-            if np.count_nonzero(target_3d[i]) > 0:
-                gen_list.append(i)
+            num_zero = np.count_nonzero(target_3d[i])
+            if np.count_nonzero(target_3d[i]) > 30:
+                gen_list.append((i, num_zero))
         # gen_list += list(np.random.randint(low=20, high=slice_num - 20, size=int(len(gen_list) / 2)))
+        gen_list.sort(key=lambda x: x[1], reverse=True)
+        gen_list = gen_list[0:1]
         # random.shuffle(gen_list)
         # for i in range(input_3d.shape[0]):
-        for i in gen_list:
-            print("Returning data for z index: " + str(i))
-            yield (np.expand_dims(np.expand_dims(input_3d[i], axis=0), axis=0), np.expand_dims(np.expand_dims(target_3d[i], axis=0), axis=0))
+        for index, _ in gen_list:
+            print("Returning data for z index: " + str(index))
+            yield (np.expand_dims(np.expand_dims(input_3d[index], axis=0), axis=0), np.expand_dims(np.expand_dims(target_3d[index], axis=0), axis=0))
+
+        # yield (np.expand_dims(np.expand_dims(input_3d[gen_list[len(gen_list) / 2]], axis=0), axis=0), np.expand_dims(np.expand_dims(target_3d[gen_list[len(gen_list) / 2]], axis=0), axis=0))
         # yield (np.expand_dims(np.expand_dims(np.mean(input_3d, axis=0), axis=0), axis=0), np.expand_dims(np.expand_dims(np.mean(target_3d, axis=0), axis=0), axis=0))
 
 """

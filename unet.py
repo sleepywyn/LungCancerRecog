@@ -101,10 +101,13 @@ if __name__ == '__main__':
     # input, target = train_generator.next()                # test generator
     # print input.shape
     # print target.shape
+    # # np.set_printoptions(threshold='nan')
+    # # print target
     # input2, target2 = train_generator.next()  # test generator
+    # print target2
 
     model = unet_model()
-    model.fit_generator(generator=train_generator, steps_per_epoch=1, epochs=7000, validation_data=None)
+    model.fit_generator(generator=train_generator, steps_per_epoch=1, epochs=400, validation_data=None)
     model.save('./models/my_model.h5')
 
     # 1.3.6.1.4.1.14519.5.2.1.6279.6001.217754016294471278921686508169_nodule_mask.npz
