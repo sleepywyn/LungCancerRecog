@@ -41,16 +41,16 @@ def train_xgboost():
     trn_x, val_x, trn_y, val_y = cross_validation.train_test_split(x_train_new, y_train, random_state=42, stratify=y_train,
                                                                    test_size=0.20)
 
-    clf = xgb.XGBRegressor(max_depth=10,
-                           n_estimators=1500,
-                           min_child_weight=9,
-                           learning_rate=0.05,
+    clf = xgb.XGBRegressor(max_depth=5,
+                           n_estimators=2500,
+                           min_child_weight=96,
+                           learning_rate=0.03737,
                            nthread=8,
-                           subsample=0.80,
-                           colsample_bytree=0.80,
-                           seed=4242)
+                           subsample=0.85,
+                           colsample_bytree=0.90,
+                           seed=96)
 
-    clf.fit(trn_x, trn_y, eval_set=[(val_x, val_y)], verbose=True, eval_metric='logloss', early_stopping_rounds=50)
+    clf.fit(trn_x, trn_y, eval_set=[(val_x, val_y)], verbose=True, eval_metric='logloss', early_stopping_rounds=100)
     return x_test_new, clf
 
 def make_submit():
@@ -59,7 +59,7 @@ def make_submit():
     pred = clf.predict(x_test_new)
 
     df['cancer'] = pred
-    df.to_csv('%s/pred.csv' % out_folder, index=False)
+    df.to_csv('%s/xgb.csv' % out_folder, index=False)
     print(df.head())
 
 
