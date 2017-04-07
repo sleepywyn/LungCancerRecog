@@ -24,6 +24,37 @@ def read_file(label_file, image_folder):
             labels.append(decode_label(label))
         return data_file, labels
 
+def read_luna_csv(label_file):
+    df = pd.read_csv(label_file)
+    grouped = df.groupby("seriesuid").agg({
+        'coordX' : lambda x: list(x),
+        'coordY': lambda x: list(x),
+        'coordZ': lambda x: list(x),
+        'diameter_mm': lambda x: list(x)
+    })
+    # result = grouped.apply(lambda row: [row['coordX'][0]] + [row['coordY'][0]], axis=1)
+    grouped['nodule'] = grouped.apply(lambda row: concatRow(row), axis=1)
+    return grouped[['nodule']]
+
+def concatRow(row):
+    l = []
+    for x in range(len(row['coordX'])):
+        l.append([row['coordX'][x]] + [row['coordY'][x]] + [row['coordZ'][x]] + [row['diameter_mm'][x]])
+    return l
+
+def load_npz(file):
+    return np.load(file)['arr_0']
+
+def split(df, ratio):
+    samp_num = int(df.shape[0] * ratio)
+    indices = df.index
+    rows_num = random.sample(range(df.shape[0]), samp_num)
+    rows_ix = map(lambda x: indices[x], rows_num)
+
+    df_train = df.ix[rows_ix]
+    df_test = df.drop(rows_ix)
+    return df_train, df_test
+
 
 """
 split the label file according to specified ratio
@@ -59,6 +90,35 @@ def read_image_from_split(split_df, image_folder):
 def read_prediction(file_path):
     df = pd.read_csv(file_path)
     return df
+
+def luna_unet_gen(df, data_folder):
+    # df = read_luna_csv(csv_path)
+    for index, row in df.iterrows():
+        #row['nodule']
+        print("Start fetching patient: " + index)
+        image_path = data_folder + "/" + index + "_lung_img.npz"
+        ground_truth_path = data_folder + "/" + index + "_nodule_mask.npz"
+        try:
+            input_3d, target_3d = load_npz(image_path), load_npz(ground_truth_path)
+        except: continue
+
+        gen_list = []
+        slice_num = target_3d.shape[0]
+        for i in range(slice_num):
+            num_zero = np.count_nonzero(target_3d[i])
+            if np.count_nonzero(target_3d[i]) > 50:
+                gen_list.append((i, num_zero))
+        # gen_list += list(np.random.randint(low=20, high=slice_num - 20, size=int(len(gen_list) / 2)))
+        gen_list.sort(key=lambda x: x[1], reverse=True)
+        gen_list = gen_list[0:1]
+        # random.shuffle(gen_list)
+        # for i in range(input_3d.shape[0]):
+        for index, _ in gen_list:
+            print("Returning data for z index: " + str(index))
+            yield (np.expand_dims(np.expand_dims(input_3d[index], axis=0), axis=0), np.expand_dims(np.expand_dims(target_3d[index], axis=0), axis=0))
+
+        # yield (np.expand_dims(np.expand_dims(input_3d[gen_list[len(gen_list) / 2]], axis=0), axis=0), np.expand_dims(np.expand_dims(target_3d[gen_list[len(gen_list) / 2]], axis=0), axis=0))
+        # yield (np.expand_dims(np.expand_dims(np.mean(input_3d, axis=0), axis=0), axis=0), np.expand_dims(np.expand_dims(np.mean(target_3d, axis=0), axis=0), axis=0))
 
 """
 generate random split index

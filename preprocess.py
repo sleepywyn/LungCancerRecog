@@ -11,12 +11,12 @@ from skimage.segmentation import clear_border
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from multiprocessing import Pool
 from functools import partial
-import pretrain_mx
+# import pretrain_mx
 
-input_folder = "./stage1"
-output_folder = "./out"
-output_seg_folder = "./out"
-thread_num = 3
+input_folder = "./data/stage1"
+output_folder = "./data/out_origin"
+output_seg_folder = "./data/out_origin"
+thread_num = 5
 mx = False
 
 IMG_PX_SIZE = 224
@@ -264,31 +264,35 @@ def plot_3d(image, threshold=-300):
 ##          Util          ##
 ############################
 def preprocess(patient):
-    print("INFO: Processing image for patient " + str(patient))
-    patient_folder = input_folder + "/" + patient
-    patient_slices = load_slices(patient_folder)
-    if patient_slices is None:
-        print("WARN: No slices for patient " + str(patient))
-        return
-    patient_d3_image = convert_hu(patient_slices)
-    patient_d3_image_resample, new_spacing = resample(patient_d3_image, patient_slices)
-    print("INFO: Before resampling, patient's image shape is " + str(patient_d3_image.shape))
-    print("INFO: After  resampling, patient's image shape is " + str(patient_d3_image_resample.shape))
-    print("INFO: New spacing is " + str(new_spacing))  # [ 1.  0.9999996  0.9999996]
-#    patient_mask_image = segment_lung_mask(first_patient_d3_image_resample)
-#    print("INFO: Generated binary image during segmentation")
-    patient_d3_image_resample_clean = zero_center(normalize(patient_d3_image_resample))
-    patient_d3_image_resample_clean_resized = resize(patient_d3_image_resample_clean, 0)
-    patient_d3_image_resample_clean_resized_xyz = resize(patient_d3_image_resample_clean_resized, 1)
-    # plot_3d(patient_d3_image_resample_clean_resized, 400)  # preview 3d image
-    # plt.show()
+    try:
+        print("INFO: Processing image for patient " + str(patient))
+        patient_folder = input_folder + "/" + patient
+        patient_slices = load_slices(patient_folder)
+        if patient_slices is None:
+            print("WARN: No slices for patient " + str(patient))
+            return
+        patient_d3_image = convert_hu(patient_slices)
+        patient_d3_image_resample, new_spacing = resample(patient_d3_image, patient_slices)
+        print("INFO: Before resampling, patient's image shape is " + str(patient_d3_image.shape))
+        print("INFO: After  resampling, patient's image shape is " + str(patient_d3_image_resample.shape))
+        print("INFO: New spacing is " + str(new_spacing))  # [ 1.  0.9999996  0.9999996]
+    #    patient_mask_image = segment_lung_mask(first_patient_d3_image_resample)
+    #    print("INFO: Generated binary image during segmentation")
+        patient_d3_image_resample_clean = zero_center(normalize(patient_d3_image_resample))
+        patient_d3_image_resample_clean_resized = resize(patient_d3_image_resample_clean, 0)
+        # patient_d3_image_resample_clean_resized_xyz = resize(patient_d3_image_resample_clean_resized, 1)
+        # plot_3d(patient_d3_image_resample_clean_resized, 400)  # preview 3d image
+        # plt.show()
 
-    output_patient = output_folder + "/" + patient
-    np.save(output_patient, patient_d3_image_resample_clean_resized_xyz)
-    print("INFO: Saving ndarray of patient %s ... ..." % patient)
-    print "=============================================================="
+        output_patient = output_folder + "/" + patient
+        np.save(output_patient, patient_d3_image_resample_clean_resized)
+        print("INFO: Saving ndarray of patient %s ... ..." % patient)
+        print "=============================================================="
+    except:
+        print("bad sample encountered: " + patient)
 
 def preprocess_segment(patient):
+
     print("INFO: Processing segment image for patient " + str(patient))
     patient_folder = input_folder + "/" + patient
     patient_slices = load_slices(patient_folder)
@@ -316,30 +320,33 @@ def preprocess_segment(patient):
     print "=============================================================="
 
 def preprocess_segment_pretrain(pretrained_model, patient):
-    print("INFO: Processing segment image and do pretraining for patient " + str(patient))
-    patient_folder = input_folder + "/" + patient
-    patient_slices = load_slices(patient_folder)
-    if patient_slices is None:
-        print("WARN: No slices for patient " + str(patient))
-        return
-    for inx, slice in enumerate(patient_slices):
-        patient_slices[inx].pixel_array = get_segmented_lungs(slice.pixel_array)
-    print("INFO: Applied binary mask during segmentation")
-    patient_d3_image = convert_hu(patient_slices)
-    patient_d3_image_resample, new_spacing = resample(patient_d3_image, patient_slices)
-    print("INFO: Before resampling, patient's image shape is " + str(patient_d3_image.shape))
-    print("INFO: After  resampling, patient's image shape is " + str(patient_d3_image_resample.shape))
-    print("INFO: New spacing is " + str(new_spacing))  # [ 1.  0.9999996  0.9999996]
+    try:
+        print("INFO: Processing segment image and do pretraining for patient " + str(patient))
+        patient_folder = input_folder + "/" + patient
+        patient_slices = load_slices(patient_folder)
+        if patient_slices is None:
+            print("WARN: No slices for patient " + str(patient))
+            return
+        for inx, slice in enumerate(patient_slices):
+            patient_slices[inx].pixel_array = get_segmented_lungs(slice.pixel_array)
+        print("INFO: Applied binary mask during segmentation")
+        patient_d3_image = convert_hu(patient_slices)
+        patient_d3_image_resample, new_spacing = resample(patient_d3_image, patient_slices)
+        print("INFO: Before resampling, patient's image shape is " + str(patient_d3_image.shape))
+        print("INFO: After  resampling, patient's image shape is " + str(patient_d3_image_resample.shape))
+        print("INFO: New spacing is " + str(new_spacing))  # [ 1.  0.9999996  0.9999996]
 
-    #patient_d3_image_resample_clean = zero_center(normalize(patient_d3_image_resample))
-    patient_d3_image_resample_clean_resized = resize(patient_d3_image_resample, 0)
-    patient_d3_image_resample_clean_resized_xyz = resize(patient_d3_image_resample_clean_resized, 1)
+        #patient_d3_image_resample_clean = zero_center(normalize(patient_d3_image_resample))
+        patient_d3_image_resample_clean_resized = resize(patient_d3_image_resample, 0)
+        #patient_d3_image_resample_clean_resized_xyz = resize(patient_d3_image_resample_clean_resized, 1)
 
-    #pretrain_mx.calc_features(pretrained_model, patient, patient_d3_image_resample_clean_resized_xyz, output_seg_folder)
-    output_patient = output_seg_folder + "/" + patient
-    np.save(output_patient, patient_d3_image_resample_clean_resized_xyz)
-    print("INFO: Saving segmented feature of patient %s ... ..." % patient)
-    print "=============================================================="
+        #pretrain_mx.calc_features(pretrained_model, patient, patient_d3_image_resample_clean_resized_xyz, output_seg_folder)
+        output_patient = output_seg_folder + "/" + patient
+        np.save(output_patient, patient_d3_image_resample_clean_resized)
+        print("INFO: Saving segmented feature of patient %s ... ..." % patient)
+        print "=============================================================="
+    except:
+        print("WARN: Bad sample encountered: " + patient)
 	
 def preprocess_segment_pretrain_mx(pretrained_model, patient):
     print("INFO: Processing segment image and do pretraining for patient " + str(patient))
@@ -392,7 +399,8 @@ def observe_thickness(path):
 ############################
 if __name__ == '__main__':
     patients = os.listdir(input_folder)
-    pretrained_model = pretrain_mx.get_extractor()
+    # pretrained_model = pretrain_mx.get_extractor()
+    pretrained_model = ""
     if mx:
         func = partial(preprocess_segment_pretrain_mx, pretrained_model)
     else:
