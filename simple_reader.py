@@ -94,6 +94,9 @@ def read_prediction(file_path):
 
 def luna_unet_gen(df, data_folder):
     # df = read_luna_csv(csv_path)
+    pool_counter = 0
+    image_pool = []
+
     for index, row in df.iterrows():
         print("Start fetching patient: " + index)
         image_path = data_folder + "/" + index + "_lung_img.npz"
@@ -131,7 +134,14 @@ def luna_unet_gen(df, data_folder):
         for i in range(len(flagged)):
             if flagged[i] == True:
                 print("Returning data for z index: " + str(i))
-                yield (np.expand_dims(np.expand_dims(input_3d[i], axis=0), axis=0), np.expand_dims(np.expand_dims(target_3d[i], axis=0), axis=0))
+                image_pool.append((input_3d[i], target_3d[i]))
+                pool_counter += 1
+        if(pool_counter > 100):
+            random.shuffle(image_pool)
+            for (input, target) in image_pool:
+                yield (np.expand_dims(np.expand_dims(input, axis=0), axis=0), np.expand_dims(np.expand_dims(target, axis=0), axis=0))
+            pool_counter = 0
+            image_pool = []
 
         # yield (np.expand_dims(np.expand_dims(input_3d[gen_list[len(gen_list) / 2]], axis=0), axis=0), np.expand_dims(np.expand_dims(target_3d[gen_list[len(gen_list) / 2]], axis=0), axis=0))
         # yield (np.expand_dims(np.expand_dims(np.mean(input_3d, axis=0), axis=0), axis=0), np.expand_dims(np.expand_dims(np.mean(target_3d, axis=0), axis=0), axis=0))
