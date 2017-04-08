@@ -6,14 +6,23 @@ import threading
 import simple_reader as sr
 
 """
-Tensor board visualization method
+Setting directories and hyper-params
 """
-summaries_dir = "/home/Administrator/lung_cancer/LungCancerRecog/tensor_board"
+input_folder4q = "./out_cubic"   #"./data/d3_images_seg_mid"
+train_label_dir = "./cubic_labels.csv"   #"./data/stage1_labels.csv"
+submission_template_dir = "./data/stage1_sample_submission.csv"
+pred_result_dir = "./data/pred_3d_cnn.csv"
+summaries_dir = "/opt/LungCancerRecog/board"
+
+img_x = img_y = 36
+img_z = 36
+filter_size = 3
+
 q_capacity = 4
 dequeue_size = 2
 train_seg = 0.98
-iter_num = 2000 / dequeue_size
-step_size = 5e-5
+iter_num = 10000 / dequeue_size
+step_size = 1e-4
 fc_num = 300
 
 def variable_summaries(var):
@@ -53,15 +62,18 @@ def max_pool_2X2X2(x):
 #config.gpu_options.allow_growth = True
 sess = tf.InteractiveSession()
 #### simple_load test images ###
-df_train, df_test = sr.read_and_split("./data/stage1_labels.csv", train_seg)
-test_images_list, test_labels_list = sr.read_image_from_split(df_test, "./data/d3_images_seg_mid")
-test_images, test_labels = np.asarray(test_images_list), np.stack(map(one_hot, test_labels_list))
+df_train, df_test = sr.read_and_split(train_label_dir, train_seg)
+test_images_list, test_labels_list = sr.read_npz_image_from_split(df_test, input_folder4q)
+test_images, test_labels = np.array(test_images_list), np.stack(map(one_hot, test_labels_list))
+
+print("Test data has shape: " + str(test_images.shape) + "----" + str(test_labels.shape))
 
 # image_list, label_list = simple_reader.read_file("./data/test.csv", "./data/d3_slices")
 coord = tf.train.Coordinator()
-queue = fifo.FIFO_Queue(capacity=q_capacity, feature_input_shape=[64, 128, 128],
+# e.g. feature_input_shape=[64, 128, 128]
+queue = fifo.FIFO_Queue(capacity=q_capacity, feature_input_shape=[img_z, img_x, img_y],
                         label_input_shape=[],
-                        input_data_folder="./data/d3_images_seg_mid",
+                        input_data_folder=input_folder4q,
                         input_label_file="",
                         input_df=df_train,
                         sess=sess,
@@ -70,14 +82,16 @@ queue = fifo.FIFO_Queue(capacity=q_capacity, feature_input_shape=[64, 128, 128],
 t = threading.Thread(target=queue.enqueue_from_df, name="enqueue")
 t.start()
 
-x = tf.placeholder(tf.float32, [None, 64, 128, 128], name='x')
+# e.g. x = tf.placeholder(tf.float32, [None, 64, 128, 128], name='x')
+x = tf.placeholder(tf.float32, [None, img_z, img_x, img_y], name='x')
 y_ = tf.placeholder(tf.float32, [None, 2], name='y_')
 
-x_image = tf.reshape(x, [-1, 64, 128, 128, 1])  # [-1, width, height, color channel]  -1 means that the length in that dimension is inferred
+# e.g. x_image = tf.reshape(x, [-1, 64, 128, 128, 1])
+x_image = tf.reshape(x, [-1, img_z, img_x, img_y, 1])  # [-1, width, height, color channel]  -1 means that the length in that dimension is inferred
 
 ##------- Layer1 -------##
 with tf.name_scope('weights_conv1'):
-    W_conv1 = weight_variable([5, 5, 5, 1, 16])  # [filter_size, filter_size, num_input_channels, num_filters (k value, sometimes called output channel. This is NOT RGB channel)]
+    W_conv1 = weight_variable([filter_size, filter_size, filter_size, 1, 16])  # [filter_size, filter_size, num_input_channels, num_filters (k value, sometimes called output channel. This is NOT RGB channel)]
     variable_summaries(W_conv1)
 b_conv1 = bias_variable([16])
 
@@ -86,7 +100,7 @@ h_pool1 = max_pool_2X2X2(h_conv1)
 
 ##------- Layer2 -------##
 with tf.name_scope('weights_conv2'):
-    W_conv2 = weight_variable([5, 5, 5, 16, 64])
+    W_conv2 = weight_variable([filter_size, filter_size, filter_size, 16, 64])
     variable_summaries(W_conv2)
 b_conv2 = bias_variable([64])
 
@@ -95,10 +109,10 @@ h_pool2 = max_pool_2X2X2(h_conv2)
 
 ##------- Fully Connected Layer1 -------##
 # W_fc1 = weight_variable([7 * 7 * 64, 1024])
-W_fc1 = weight_variable([16 * 32 * 32 * 64, fc_num])
+W_fc1 = weight_variable([(img_z/4) * (img_x/4) * (img_y/4) * 64, fc_num])
 b_fc1 = bias_variable([fc_num])
 
-h_pool2_flat = tf.reshape(h_pool2, [-1, 16 * 32 * 32 * 64])  # flatten the layer. prepare for fully connected layer
+h_pool2_flat = tf.reshape(h_pool2, [-1, (img_z/4) * (img_x/4) * (img_y/4) * 64])  # flatten the layer. prepare for fully connected layer
 h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
 ##------- Drop Out Layer -------##
@@ -143,14 +157,16 @@ for i in range(iter_num):
     # batch_xs, batch_ys = image_list[i].reshape((1, 160, 160)), label_list[i]
     # batch_ys = np.array([[1, 0]]) if batch_ys == 0 else np.array([[0, 1]])
 
-    batch_xs, batch_ys = deq_xs.reshape(dequeue_size, 64, 128, 128), map(one_hot, deq_ys.reshape(dequeue_size, 1))
+    batch_xs, batch_ys = deq_xs.reshape(dequeue_size, img_z, img_x, img_y), map(one_hot, deq_ys.reshape(dequeue_size, 1))
     # batch_xs, batch_ys = deq_xs.reshape(1, 32, 64, 64), deq_ys
     # batch_ys = np.array([[1, 0]]) if batch_ys == 0 else np.array([[0, 1]])
 
     if i % 4 == 0 and i != 0:  # alternative. calculating accuracy regarding to test set.
+        print "Entering validation section..."
         summary, acc = sess.run([merged, accuracy], feed_dict={x: test_images, y_: test_labels, keep_prob: 1.0})
+        print "Get acc for validation dataset..."
         test_writer.add_summary(summary, i)
-        print(i, acc)
+        print("=======> " + str(acc) + " <=======")
     else:
         print(i)
         summary, _ = sess.run([merged, train_step], feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
@@ -168,13 +184,13 @@ queue.close()
 
 print "===========Prediction start===================================="
 
-df_prediction = sr.read_prediction("./data/stage1_sample_submission.csv")
+df_prediction = sr.read_prediction(submission_template_dir)
 
 coord_predict = tf.train.Coordinator()
 predict_queue  = fifo.FIFO_Queue(capacity=q_capacity, 
-                        feature_input_shape=[64, 128, 128],
+                        feature_input_shape=[img_z, img_x, img_y],
                         label_input_shape=[],
-                        input_data_folder="./data/d3_images_seg_mid",
+                        input_data_folder=input_folder4q,
                         input_label_file="",
                         input_df=df_prediction,
                         sess=sess,
@@ -184,14 +200,14 @@ t2.start()
 
 for i in range(df_prediction.shape[0] / dequeue_size):
     deq_xs, deq_ys = predict_queue.dequeue_many()
-    batch_xs, batch_ys = deq_xs.reshape(dequeue_size, 64, 128, 128), map(one_hot, deq_ys.reshape(dequeue_size, 1))
+    batch_xs, batch_ys = deq_xs.reshape(dequeue_size, img_z, img_x, img_y), map(one_hot, deq_ys.reshape(dequeue_size, 1))
 
     batch_prediction = sess.run(prediction_op, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
     for j in range(batch_prediction.shape[0]):
         df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j, 1]
 
 print df_prediction
-df_prediction.to_csv("/home/Administrator/lung_cancer/LungCancerRecog/data/pred.csv", index=False)
+df_prediction.to_csv(pred_result_dir, index=False)
 
 
 coord_predict.request_stop()

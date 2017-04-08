@@ -61,6 +61,7 @@ class FIFO_Queue:
     :param self.input_df, col: id, cancer
     """
     def enqueue_from_df(self):
+	print("Entering enqueue_from_df...")
         dfList = [self.input_df, self.input_df]
         double = pd.concat(dfList)
         for index, row in double.iterrows():
@@ -69,13 +70,19 @@ class FIFO_Queue:
                 print "queue stop signal received"
                 break
             patient_id = row['id']
-            label_value = row['cancer']
+            label_value = row['label']
+            print(patient_id, label_value)
+            print(self.input_data_folder + "/cubic_" + str(patient_id) + ".npz")
             try:
-                image_data = np.load(self.input_data_folder + "/" + patient_id + ".npy")
+                image_data = np.load(self.input_data_folder + "/cubic_" + str(patient_id) + ".npz")['arr_0']
             except:
+                print("Error loading image...")
                 continue
             print("Ready to Enqueue...")
-            self.sess.run(self.enqueue_op, feed_dict={self.feature_placeholder: image_data, self.label_placeholder: label_value})
+            if image_data.shape == (36, 36, 36):
+            	self.sess.run(self.enqueue_op, feed_dict={self.feature_placeholder: image_data, self.label_placeholder: label_value})
+            else:
+                print("WARN: Skip 1 data with shape " + str(image_data.shape))
             print("Enqueued data")
 
     """

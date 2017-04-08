@@ -87,6 +87,22 @@ def read_image_from_split(split_df, image_folder):
         labels.append(label)
     return images, labels
 
+def read_npz_image_from_split(split_df, image_folder):
+    print split_df
+    images = []
+    labels = []
+    for index, row in split_df.iterrows():
+        path = image_folder + "/cubic_" + str(row['id']) + ".npz"
+        try:
+            image_data = np.load(path)['arr_0']
+        except:
+            continue
+        label = int(row['label'])
+        if image_data.shape == (36, 36, 36):
+            images.append(image_data)
+            labels.append(label)
+    return images, labels
+
 def read_prediction(file_path):
     df = pd.read_csv(file_path)
     return df
