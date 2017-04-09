@@ -8,11 +8,11 @@ import simple_reader as sr
 """
 Setting directories and hyper-params
 """
-input_folder4q = "./out_cubic"   #"./data/d3_images_seg_mid"
-train_label_dir = "./cubic_labels.csv"   #"./data/stage1_labels.csv"
+input_folder4q = "./data_luna/out_cubic"   #"./data/d3_images_seg_mid"
+train_label_dir = "./data_luna/cubic_labels.csv"   #"./data/stage1_labels.csv"
 submission_template_dir = "./data/stage1_sample_submission.csv"
 pred_result_dir = "./data/pred_3d_cnn.csv"
-summaries_dir = "/opt/LungCancerRecog/board"
+summaries_dir = "/home/sleepywyn/Dev/GitRepo/tensorboard"
 
 img_x = img_y = 36
 img_z = 36
@@ -20,9 +20,9 @@ filter_size = 3
 
 q_capacity = 4
 dequeue_size = 2
-train_seg = 0.98
-iter_num = 10000 / dequeue_size
-step_size = 1e-4
+train_seg = 0.983
+iter_num = 26000 / dequeue_size # 26000 - 30000
+step_size = 2e-6  # 2e-6 - 3e-6
 fc_num = 300
 
 def variable_summaries(var):
@@ -151,9 +151,9 @@ sess.run(tf.global_variables_initializer())
 for i in range(iter_num):
     # batch_xs, batch_ys = mnist.train.next_batch(50)
     # deq_xs, deq_ys = queue.dequeue_one()
-    print("Loop starts")
+    # print("Loop starts")
     deq_xs, deq_ys = queue.dequeue_many()
-    print("Dequeue done")
+    # print("Dequeue done")
     # batch_xs, batch_ys = image_list[i].reshape((1, 160, 160)), label_list[i]
     # batch_ys = np.array([[1, 0]]) if batch_ys == 0 else np.array([[0, 1]])
 
@@ -161,19 +161,22 @@ for i in range(iter_num):
     # batch_xs, batch_ys = deq_xs.reshape(1, 32, 64, 64), deq_ys
     # batch_ys = np.array([[1, 0]]) if batch_ys == 0 else np.array([[0, 1]])
 
-    if i % 4 == 0 and i != 0:  # alternative. calculating accuracy regarding to test set.
-        print "Entering validation section..."
+    if i % 10 == 0 and i != 0:  # alternative. calculating accuracy regarding to test set.
+        # print "Entering validation section..."
         summary, acc = sess.run([merged, accuracy], feed_dict={x: test_images, y_: test_labels, keep_prob: 1.0})
-        print "Get acc for validation dataset..."
+        # print "Get acc for validation dataset..."
         test_writer.add_summary(summary, i)
         print("=======> " + str(acc) + " <=======")
     else:
-        print(i)
-        summary, _ = sess.run([merged, train_step], feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
+        print("running iteration: " + str(i))
+        summary, _ = sess.run([merged, train_step], feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.6})
         train_writer.add_summary(summary, i)
 
 print("test accuracy %g" % accuracy.eval(feed_dict={
     x: test_images, y_: test_labels, keep_prob: 1.0}))
+
+saver = tf.train.Saver()
+saver.save(sess, "./models/classifier")
 
 coord.request_stop()
 print coord.should_stop()
@@ -182,35 +185,35 @@ coord.join([t])
 queue.close()
 
 
-print "===========Prediction start===================================="
-
-df_prediction = sr.read_prediction(submission_template_dir)
-
-coord_predict = tf.train.Coordinator()
-predict_queue  = fifo.FIFO_Queue(capacity=q_capacity, 
-                        feature_input_shape=[img_z, img_x, img_y],
-                        label_input_shape=[],
-                        input_data_folder=input_folder4q,
-                        input_label_file="",
-                        input_df=df_prediction,
-                        sess=sess,
-                        coord=coord_predict)
-t2 = threading.Thread(target=predict_queue.enqueue_from_df, name="enqueue_prediction_data")
-t2.start()
-
-for i in range(df_prediction.shape[0] / dequeue_size):
-    deq_xs, deq_ys = predict_queue.dequeue_many()
-    batch_xs, batch_ys = deq_xs.reshape(dequeue_size, img_z, img_x, img_y), map(one_hot, deq_ys.reshape(dequeue_size, 1))
-
-    batch_prediction = sess.run(prediction_op, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
-    for j in range(batch_prediction.shape[0]):
-        df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j, 1]
-
-print df_prediction
-df_prediction.to_csv(pred_result_dir, index=False)
-
-
-coord_predict.request_stop()
-predict_queue.cancel_pending()
-coord_predict.join([t2])
-predict_queue.close()
+# print "===========Prediction start===================================="
+#
+# df_prediction = sr.read_prediction(submission_template_dir)
+#
+# coord_predict = tf.train.Coordinator()
+# predict_queue  = fifo.FIFO_Queue(capacity=q_capacity,
+#                         feature_input_shape=[img_z, img_x, img_y],
+#                         label_input_shape=[],
+#                         input_data_folder=input_folder4q,
+#                         input_label_file="",
+#                         input_df=df_prediction,
+#                         sess=sess,
+#                         coord=coord_predict)
+# t2 = threading.Thread(target=predict_queue.enqueue_from_df, name="enqueue_prediction_data")
+# t2.start()
+#
+# for i in range(df_prediction.shape[0] / dequeue_size):
+#     deq_xs, deq_ys = predict_queue.dequeue_many()
+#     batch_xs, batch_ys = deq_xs.reshape(dequeue_size, img_z, img_x, img_y), map(one_hot, deq_ys.reshape(dequeue_size, 1))
+#
+#     batch_prediction = sess.run(prediction_op, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
+#     for j in range(batch_prediction.shape[0]):
+#         df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j, 1]
+#
+# print df_prediction
+# df_prediction.to_csv(pred_result_dir, index=False)
+#
+#
+# coord_predict.request_stop()
+# predict_queue.cancel_pending()
+# coord_predict.join([t2])
+# predict_queue.close()
