@@ -9,6 +9,7 @@ from keras.models import Model
 from keras.optimizers import Adam
 import numpy as np
 import simple_reader as sr
+import numpy.ma as ma
 
 # change the loss function
 def dice_coef(y_true, y_pred):
@@ -163,11 +164,14 @@ def load_model(path, model):
 
 def predict_nodule_mask(df_prediction, model, data_folder, output_folder):
     for index, row in df_prediction.iterrows():
-        if index > 9:
+        if index > 2:
             return
         patientid = row['id']
         print("Begin prediction for patient " + str(index) + " id: " + str(patientid))
-        patient_3d = sr.load_npz(data_folder + "/" + patientid + ".npz")
+        try:
+            patient_3d = sr.load_npz(data_folder + "/" + patientid + ".npz")
+        except:
+            continue
         patient_3d = patient_3d + 1024        #
         nodule_mask_list = []
         for slice in patient_3d:
@@ -175,16 +179,17 @@ def predict_nodule_mask(df_prediction, model, data_folder, output_folder):
             nodule_mask = model.predict(expanded)[0][0] # predict and shrink dims
             nodule_mask_list.append(nodule_mask)
         nodule_mask_3d = np.asarray(nodule_mask_list)
-        prediction = np.logical_and(patient_3d, nodule_mask)
+        masked_3d = ma.masked_where(nodule_mask_3d != 1, patient_3d)
+        prediction = masked_3d.filled(0)
         np.savez_compressed(output_folder + "/" + str(patientid), prediction)
-        print prediction.shape
+        # print prediction[0]
+        # print prediction.shape
+        # print np.count_nonzero(prediction)
         # expanded = np.expand_dims(patient_3d, axis=1) # (z, kernel=1, 512, 512)
         # print expanded.shape
         # nodule_mask = model.predict(expanded)
         # print nodule_mask.shape
         # return
-
-        #prediction = np.logical_and(patient_3d, nodule_mask)
 
 
 ############################
@@ -213,16 +218,17 @@ if __name__ == '__main__':
     # input2, target2 = train_generator.next()  # test generator
     # print target2
     # =================================== Train =============================== #
-    model = unet_model()
-    model.fit_generator(generator=train_generator, steps_per_epoch=1, epochs=600, validation_data=None)
-    model.save('./models/my_model.h5')
+    # model = unet_model()
+    # model.fit_generator(generator=train_generator, steps_per_epoch=1, epochs=600, validation_data=None)
+    # model.save('./models/my_model.h5')
 
     # =================================== Prediction =============================== #
-    # model = unet_model()
-    # loaded_model = load_model("./models/my_model.h5", model)
-    # df_prediction = sr.read_prediction(submission_template_dir)
-    # predict_nodule_mask(df_prediction, loaded_model, data_for_prediction, out_folder)
+    model = unet_model()
+    loaded_model = load_model("./models/unet_magic1.h5", model)
+    df_prediction = sr.read_prediction(submission_template_dir)
+    predict_nodule_mask(df_prediction, loaded_model, data_for_prediction, out_folder)
 
     # loaded_model.fit_generator(generator=train_generator, steps_per_epoch=1, epochs=200, validation_data=None)
 
-    # 1.3.6.1.4.1.14519.5.2.1.6279.6001.217754016294471278921686508169_nodule_mask.npz
+    # p1 = sr.load_npz("./data/unent_prediction/004828796b994741c4466f59a8c7e9a4.npz")
+    # print np.count_nonzero(p1)
