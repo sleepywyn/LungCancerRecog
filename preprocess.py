@@ -13,13 +13,13 @@ from multiprocessing import Pool
 from functools import partial
 # import pretrain_mx
 
-input_folder = "./data/stage1"
-output_folder = "./data/out_origin"
-output_seg_folder = "./data/out_origin"
+input_folder = "./data/stage2"
+output_folder = "./data/preprocess_512_stage2"
+output_seg_folder = "./data/preprocess_512_stage2"
 thread_num = 5
 mx = False
 
-IMG_PX_SIZE = 224
+IMG_PX_SIZE = 512
 Z_PX_SIZE = 182
 
 # 1. Load Dicom files
@@ -342,7 +342,9 @@ def preprocess_segment_pretrain(pretrained_model, patient):
 
         #pretrain_mx.calc_features(pretrained_model, patient, patient_d3_image_resample_clean_resized_xyz, output_seg_folder)
         output_patient = output_seg_folder + "/" + patient
-        np.save(output_patient, patient_d3_image_resample_clean_resized)
+        # np.save(output_patient, patient_d3_image_resample_clean_resized)
+        np.savez_compressed(output_patient, patient_d3_image_resample_clean_resized)
+
         print("INFO: Saving segmented feature of patient %s ... ..." % patient)
         print "=============================================================="
     except:

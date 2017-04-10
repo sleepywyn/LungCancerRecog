@@ -148,11 +148,11 @@ def luna_unet_gen(df, data_folder):
         flagged = np.logical_and(flagged, mask_0)
 
         for i in range(len(flagged)):
-            if flagged[i] == True:
+            if flagged[i] == True and gen_list[i] > 50:
                 print("Returning data for z index: " + str(i))
                 image_pool.append((input_3d[i], target_3d[i]))
                 pool_counter += 1
-        if(pool_counter > 100):
+        if(pool_counter > 22):
             random.shuffle(image_pool)
             for (input, target) in image_pool:
                 yield (np.expand_dims(np.expand_dims(input, axis=0), axis=0), np.expand_dims(np.expand_dims(target, axis=0), axis=0))
