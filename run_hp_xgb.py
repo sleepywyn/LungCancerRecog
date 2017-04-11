@@ -7,10 +7,10 @@ from hyperopt import hp
 from hyperopt import fmin, tpe, STATUS_OK, Trials
 import os
 
-feat_folder = "./out_feat"
-train_file = "./data/stage1_labels.csv"
-test_file = "./data/stage1_sample_submission.csv"
-out_folder = "./xgb_pred_old"
+feat_folder = "./stage2_feat"
+train_file = "./data/stage1_labels_all.csv"
+test_file = "./data/stage2_sample_submission.csv"
+out_folder = "./xgb_pred_stage2"
 iter_num = 2000
 
 trial_counter = 0
