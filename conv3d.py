@@ -10,8 +10,8 @@ Setting directories and hyper-params
 """
 input_folder4q = "./data_luna/out_cubic"   #"./data/d3_images_seg_mid"
 train_label_dir = "./data_luna/cubic_labels.csv"   #"./data/stage1_labels.csv"
-submission_template_dir = "./data/stage1_sample_submission.csv"
-pred_result_dir = "./data/pred_3d_cnn.csv"
+submission_template_dir = "./data/stage2_sample_submission.csv"
+pred_result_dir = "./data/pred_3d_cnn_stage2.csv"
 summaries_dir = "/home/sleepywyn/Dev/GitRepo/tensorboard"
 
 img_x = img_y = 36
@@ -185,22 +185,24 @@ coord.join([t])
 queue.close()
 
 
-# print "===========Prediction start===================================="
-#
-# df_prediction = sr.read_prediction(submission_template_dir)
-#
-# coord_predict = tf.train.Coordinator()
-# predict_queue  = fifo.FIFO_Queue(capacity=q_capacity,
-#                         feature_input_shape=[img_z, img_x, img_y],
-#                         label_input_shape=[],
-#                         input_data_folder=input_folder4q,
-#                         input_label_file="",
-#                         input_df=df_prediction,
-#                         sess=sess,
-#                         coord=coord_predict)
-# t2 = threading.Thread(target=predict_queue.enqueue_from_df, name="enqueue_prediction_data")
-# t2.start()
-#
+print "===========Prediction start===================================="
+
+df_prediction = sr.read_prediction(submission_template_dir)
+print df_prediction
+
+coord_predict = tf.train.Coordinator()
+predict_queue  = fifo.FIFO_Queue(capacity=q_capacity,
+                        feature_input_shape=[img_z, img_x, img_y],
+                        label_input_shape=[],
+                        input_data_folder="./data/stage2_cubics",
+                        input_label_file="",
+                        input_df=df_prediction,
+                        sess=sess,
+                        coord=coord_predict)
+t2 = threading.Thread(target=predict_queue.enqueue_from_df_stage2, name="enqueue_prediction_data")
+t2.start()
+
+
 # for i in range(df_prediction.shape[0] / dequeue_size):
 #     deq_xs, deq_ys = predict_queue.dequeue_many()
 #     batch_xs, batch_ys = deq_xs.reshape(dequeue_size, img_z, img_x, img_y), map(one_hot, deq_ys.reshape(dequeue_size, 1))
@@ -208,12 +210,28 @@ queue.close()
 #     batch_prediction = sess.run(prediction_op, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
 #     for j in range(batch_prediction.shape[0]):
 #         df_prediction.ix[i * dequeue_size + j, 1] = batch_prediction[j, 1]
-#
-# print df_prediction
-# df_prediction.to_csv(pred_result_dir, index=False)
-#
-#
-# coord_predict.request_stop()
-# predict_queue.cancel_pending()
-# coord_predict.join([t2])
-# predict_queue.close()
+
+import csv
+print df_prediction.shape[0]
+
+with open(pred_result_dir, "wb") as file:
+    writer = csv.writer(file, delimiter=',')
+    writer.writerow(["id", "cube", "cancer"])
+    for i in range(df_prediction.shape[0]):
+        patient_id = df_prediction.ix[i, 0]
+        for j in range(216 / dequeue_size):
+            deq_xs, deq_ys = predict_queue.dequeue_many()
+            batch_xs, batch_ys = deq_xs.reshape(dequeue_size, img_z, img_x, img_y), map(one_hot,
+                                                                                        deq_ys.reshape(dequeue_size, 1))
+            batch_prediction = sess.run(prediction_op, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
+            for k in range(dequeue_size):
+                cube_num = j * dequeue_size + k
+                print(patient_id + "_" + str(cube_num) + ": " + str(batch_prediction[k, 1]))
+                writer.writerow([patient_id, cube_num, batch_prediction[k, 1]])
+
+                # df_prediction_216.loc[i * j + k] = [patient_id, cube_num, batch_prediction[k, 1]]
+
+coord_predict.request_stop()
+predict_queue.cancel_pending()
+coord_predict.join([t2])
+predict_queue.close()

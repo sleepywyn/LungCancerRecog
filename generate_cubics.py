@@ -1,10 +1,11 @@
 import numpy as np
 import simple_reader as sr
 
-npz_path = "./prepretrain_stage2"
+npz_path = "./data/preprocess_512_stage2"
+
 big_size = 216
 small_size = 36
-output_folder = "./lc_cubics"
+output_folder = "./data/stage2_cubics"
 test_csv_path = "./data/stage2_sample_submission.csv"
 
 def get_patch_from_list(lung_img, coords, cub_size):
@@ -25,9 +26,9 @@ def get_coords(big_size, small_size, conv=False):
         array = [0, 0, 0]
         cubeMid = [array]*big_size
         i=0
-        for x in range(mid, big_size-mid+1,small_size):
-            for y in range(mid,big_size-mid+1,small_size):
-                for z in range(mid,big_size-mid+1,small_size):
+        for x in range(mid, big_size-mid+1, small_size):
+            for y in range(mid, big_size-mid+1, small_size):
+                for z in range(mid,big_size-mid+1, small_size):
                     cubeMid[i]= [x,y,z]
                     i=i+1
     else:
@@ -49,6 +50,7 @@ def gen_cubics():
 		lines = f.readlines()[1:]
 		for line in lines:
 			p_id = line.split(',')[0]
+
 			lung_img = sr.load_npz(npz_path + "/" + p_id + ".npz")
 			print("INFO: Before cutting, Lung image has shape: " + str(lung_img.shape))
 			
