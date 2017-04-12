@@ -6,6 +6,7 @@ import xgboost as xgb
 from hyperopt import hp
 from hyperopt import fmin, tpe, STATUS_OK, Trials
 import os
+import pickle
 
 feat_folder = "./stage2_feat"
 train_file = "./data/stage1_labels_all.csv"
@@ -45,7 +46,7 @@ def xgb_obj(x_train, x_test, y_train, params):
 		x_train_new = x_train
 		x_test_new = x_test 
 	
-	trn_x, val_x, trn_y, val_y = cross_validation.train_test_split(x_train_new, y_train, random_state=96, stratify=y_train, test_size=0.20)
+	trn_x, val_x, trn_y, val_y = cross_validation.train_test_split(x_train_new, y_train, random_state=2017, stratify=y_train, test_size=0.25)
 
 	clf = xgb.XGBRegressor(max_depth=int(params['max_depth']),
                            n_estimators=int(params['n_estimators']),
@@ -63,6 +64,7 @@ def xgb_obj(x_train, x_test, y_train, params):
 	print("=======================")
 	df = pd.read_csv(test_file)
 	pred = clf.predict(x_test_new)
+	pickle.dump(clf, open("%s/model_%s.pickle.dat" % (out_folder, str(trial_counter)), "wb"))
 
 	df['cancer'] = pred
 	if not os.path.exists(out_folder):
@@ -70,7 +72,7 @@ def xgb_obj(x_train, x_test, y_train, params):
 	df.to_csv('%s/xgb_%s.csv' % (out_folder, str(trial_counter)), index=False)
 	best_evals = {"value": [best_evals_result]}
 	df_pred = pd.DataFrame(data = best_evals)
-	df_pred.to_csv('%s/best_evals__%s.csv' % (out_folder, str(trial_counter)), index=False)	
+	df_pred.to_csv('%s/best_evals_%s.csv' % (out_folder, str(trial_counter)), index=False)	
 	return {'loss': best_evals_result, 'status': STATUS_OK}	
 	
 	
@@ -101,18 +103,18 @@ def hyperopt_train_xgboost():
 
 
 param_space_reg_xgb = {
-	'pca_comp': hp.choice('pca_comp', [-1, 30, 60, 90]),
+	'pca_comp': hp.choice('pca_comp', [-1,]),
 	'max_depth': hp.quniform('max_depth', 3, 5, 1),
 	'n_estimators': hp.quniform('n_estimators', 1000, 4000, 500),
 	'min_child_weight' : hp.quniform('min_child_weight', 1.0, 100.0, 5.0),
-	'learning_rate' : hp.quniform('learning_rate', 0.01, 0.05, 0.01),
+	'learning_rate' : hp.quniform('learning_rate', 0.005, 0.05, 0.005),
 	'subsample' : hp.quniform('subsample', 0.8, 0.9, 0.05),
 	'colsample_bytree' : hp.quniform('colsample_bytree', 0.8, 0.9, 0.05),
-	'seed' : 96
+	'seed' : 2017
 }
 
 if __name__ == '__main__':
     best_log_loss, ind, best = hyperopt_train_xgboost()
-    print("++++++++++++++++++++++++++++++")
+    print("++++++++++++++++++++++++++++++++++++++++++")
     print(best_log_loss, ind, best)
 	
